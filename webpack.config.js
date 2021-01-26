@@ -1,0 +1,64 @@
+const path = require('path');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const {CleanWebpackPlugin} = require('clean-webpack-plugin');
+const webpack = require('webpack');
+
+module.exports = function (env) {
+  const STAGE = env.STAGE || 'dev';
+  const MODE = STAGE === 'prod' || STAGE === 'demo' ? 'production' : 'development';
+
+  return {
+    mode: MODE,
+    entry: {
+      verification: './src/index.ts',
+    },
+    output: {
+      path: path.resolve(__dirname, 'dist'),
+      filename: '[name].js',
+    },
+    resolve: {
+      extensions: ['.js', '.ts']
+    },
+    devtool: 'inline-source-map',
+    devServer: {
+      contentBase: path.join(__dirname, 'dist'),
+      compress: true,
+      port: 9102
+    },
+    plugins: [
+      new CleanWebpackPlugin({cleanStaleWebpackAssets: false}),
+      new HtmlWebpackPlugin({
+        filename: 'index.html',
+        template: './src/verification.html'
+      }),
+      new webpack.NormalModuleReplacementPlugin(/(.*)environment.(\.*).ts/, function (resource) {
+        resource.request = resource.request.replace(/environment.ts/, `environment.${STAGE}.ts`);
+      }),
+    ],
+    module: {
+      rules: [
+        {
+          test: /\.ts?$/,
+          use: 'ts-loader',
+          exclude: /node_modules/
+        },
+        {
+          test: /\.s[ac]ss$/i,
+          use: ['style-loader', 'css-loader', 'sass-loader'],
+        },
+        {
+          test: /\.(png|svg|jpg|jpeg|gif)$/i,
+          use: [
+            {
+              loader: 'file-loader',
+              options: {
+                name: 'blockchain-assets/[name].[ext]',
+              },
+            },
+          ],
+        },
+      ],
+    },
+  }
+};
+
