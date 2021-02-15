@@ -13,14 +13,14 @@ import {
 import environment from '../environments/environment';
 // assets
 import './style.scss';
-import '../blockchain-assets/blockchain-icons/Ethereum_verify_right.png';
-import '../blockchain-assets/blockchain-icons/Ethereum-Classic_verify_right.png';
-import '../blockchain-assets/blockchain-icons/IOTA_verify_right.png';
-import '../blockchain-assets/blockchain-icons/GovDigital_Icon_verify_right.png';
 import '../blockchain-assets/blockchain-icons/bloxberg_verify_right.png';
-import '../blockchain-assets/blockchain-icons/ubirch_verify_right.png';
-import '../blockchain-assets/blockchain-icons/ubirch_verify_wrong.png';
-import * as BlockchainSettings from '../blockchain-assets/blockchain-settings/blockchain-settings.json';
+import '../blockchain-assets/blockchain-icons/Ethereum-Classic_verify_right.png';
+import '../blockchain-assets/blockchain-icons/Ethereum_verify_right.png';
+import '../blockchain-assets/blockchain-icons/GovDigital_Icon_verify_right.png';
+import '../blockchain-assets/blockchain-icons/IOTA_verify_right.png';
+const ubirch_verify_right = require('../blockchain-assets/blockchain-icons/ubirch_verify_right.png');
+const ubirch_verify_wrong = require('../blockchain-assets/blockchain-icons/ubirch_verify_wrong.png');
+import * as BlockchainSettings from '../blockchain-assets/blockchain-settings.json';
 
 const LANGUAGE_MESSAGE_STRINGS = {
   de: {
@@ -98,6 +98,8 @@ const DEFAULT_FORM_CONFIG: IUbirchFormVerificationConfig = {
   elementSelector: null,
   formIds: [ 'created', 'name', 'workshop' ],
 };
+const VERSION = ''; // no prefix for v1
+
 let MESSAGE_STRINGS: any;
 let HIGHLIGHT_PAGE_AFTER_VERIFICATION = false;
 
@@ -217,7 +219,7 @@ class UbirchVerification {
     const xhttp: XMLHttpRequest = new XMLHttpRequest();
     const self = this;
 
-    xhttp.onreadystatechange = function () {
+    xhttp.onreadystatechange = function() {
       if (this.readyState < 4) {
         self.handleInfo(EInfo.PROCESSING_VERIFICATION_CALL);
       } else {
@@ -238,7 +240,9 @@ class UbirchVerification {
       }
     };
 
-    xhttp.open('POST', environment.verify_api_url, true);
+    const verificationUrl = environment.verify_api_url + VERSION + 'upp/verify/record?response_form=anchors_with_path&blockchain_info=ext';
+
+    xhttp.open('POST', verificationUrl, true);
     xhttp.setRequestHeader('Content-type', 'text/plain');
     xhttp.send(hash);
   }
@@ -276,10 +280,10 @@ class UbirchVerification {
       return;
     }
 
-// add info text that blockchain icons are clickable
+    // add info text that blockchain icons are clickable
     this.view.showSuccess();
 
-// show it for each item in array
+    // show it for each item in array
     blockchainTX.forEach((item, index) => {
       if (!item || !item.properties) {
         return;
@@ -291,7 +295,7 @@ class UbirchVerification {
 
   private sortObjectRecursive(object: any, sort: boolean): object {
     // recursive termination condition
-    if (typeof (object) !== 'object') {
+    if (typeof (object) !== 'object' || Array.isArray(object)) {
       return object;
     } else {
       const objectSorted: { [ key: string ]: any } = {};
@@ -358,16 +362,23 @@ class UbirchFormVerification extends UbirchVerification {
    * @param separatorP optional param to define paramString separator e.g. when params are read from fragment;
    * the whole string is searched in the paramStr, so you can e.g. define "%SEP%" as the separator between params;
    * default is "&" which is the normal separator for query params
+   * @param arraySeparatorP optional param to define custom separator to divide array ellements given in the url query or fragment;
+   * default is "," but this can lead into problems if normal text - possibly containing commas - has been anchored
    */
-  public setDataIntoForm(dataP, documentRef, separatorP?) {
+  public setDataIntoForm(dataP, documentRef, separatorP?, arraySeparatorP?) {
+
     const separator = separatorP || '&';
-    const allParams = dataP.split(separator).map((value: string) => {
-      const data = value.split('=');
+    const arraySeparator = arraySeparatorP || ',';
+
+    const allParams = dataP.split(separator).map((dataset: string) => {
+      const data = dataset.split('=');
+
       return {
         key: data[ 0 ],
-        value: decodeURIComponent(data[ 1 ]),
+        value: this.handleUrlParamValue(data[ 1 ], arraySeparator),
       };
     });
+
     allParams.forEach(param => {
       if (param.key) {
         let key = param.key;
@@ -379,8 +390,17 @@ class UbirchFormVerification extends UbirchVerification {
             key = this.formIds[ idIndex ];
           }
         }
-        if (documentRef.getElementById(key) && documentRef.getElementById(key) !== null) {
-          documentRef.getElementById(key).value = param.value;
+        if (Array.isArray(param.value)) {
+          param.value.forEach((value, index) => {
+            const keyStr = `${key}_${index}`;
+            if (documentRef.getElementById(keyStr) && documentRef.getElementById(keyStr) !== null) {
+              documentRef.getElementById(keyStr).value = value;
+            }
+          });
+        } else {
+          if (documentRef.getElementById(key) && documentRef.getElementById(key) !== null) {
+            documentRef.getElementById(key).value = param.value;
+          }
         }
       }
     });
@@ -418,8 +438,11 @@ class UbirchFormVerification extends UbirchVerification {
   public createJsonFromInputs(labels, documentRef) {
     let certJson = '{';
     labels.forEach((label, index) => {
-      certJson += index > 0 ? ',' : '';
-      certJson += '"' + label + '":"' + this.getInputStr(label, documentRef) + '"';
+      const valueStr = this.getInputStr(label, documentRef);
+      if (valueStr) {
+        certJson += certJson.length > 1 ? ',' : '';
+        certJson += '"' + label + '":' + valueStr;
+      }
     });
     certJson += '}';
 
@@ -429,19 +452,54 @@ class UbirchFormVerification extends UbirchVerification {
   }
 
   private getInputStr(inputId, documentRef) {
-    if (documentRef.getElementById(inputId) +
-      documentRef.getElementById(inputId).value) {
-      const doc = new
-      DOMParser().parseFromString(documentRef.getElementById(inputId).value,
-        'text/html');
-      return doc.documentElement.textContent;
+    if (documentRef.getElementById(inputId) && documentRef.getElementById(inputId).value) {
+      return this.extractElementValue(inputId, documentRef);
     } else {
-      console.warn('Missing documentElement with id ' + inputId);
-      return '';
+      const probablyAnArray = this.getInputArray(inputId, documentRef);
+      if (probablyAnArray !== undefined) {
+        return probablyAnArray;
+      } else {
+        console.warn('Missing documentElement with id ' + inputId);
+        return undefined;
+      }
     }
   }
 
-// helper to check that ubirchVerification instance is initialized and required input field are set
+  private extractElementValue(inputId, documentRef) {
+    return `"${documentRef.getElementById(inputId).value}"`;
+  }
+
+  private getInputArray(inputId, documentRef) {
+    let arrayContent = '[';
+    let index = 0;
+    let arrayElementId = `${inputId}_${index}`;
+    while (documentRef.getElementById(arrayElementId)) {
+      if (index > 0) {
+        arrayContent += ',';
+      }
+      arrayContent += this.extractElementValue(arrayElementId, documentRef);
+      index++;
+      arrayElementId = `${inputId}_${index}`;
+    }
+    if (index > 0) {
+      arrayContent += ']';
+      return arrayContent;
+    } else {
+      // no array found -> id is missing
+      return undefined;
+    }
+  }
+
+  private handleUrlParamValue(val: string, arraySeparator: string): any {
+    if (val.includes(arraySeparator)) {
+      const arrayVal = val.split(arraySeparator).map(item => decodeURIComponent(item));
+      return arrayVal;
+    } else {
+      return decodeURIComponent(val);
+    }
+  }
+
+  // helper to check that ubirchVerification instance is initialized and required input field are set
   private check(index, documentRef) {
     if (this.formIds && this.formIds.length > index) {
       const elemId = this.formIds[ index ];
@@ -522,10 +580,10 @@ class View {
     let icon: HTMLElement;
 
     if (successful) {
-      icon = this.createIconTag(environment.assets_url_prefix + BlockchainSettings.ubirchIcons.seal,
+      icon = this.createIconTag(ubirch_verify_right.default,
         'ubirch-verification-seal-img');
     } else {
-      icon = this.createIconTag(environment.assets_url_prefix + BlockchainSettings.ubirchIcons.no_seal,
+      icon = this.createIconTag(ubirch_verify_wrong.default,
         'ubirch-verification-no-seal-img');
     }
 
@@ -637,7 +695,7 @@ class View {
   }
 
   private createIconTag(src: string, imgTagId: string, width?: string, height?: string): HTMLElement {
-    const imgTag: HTMLElement = document.createElement('img');
+    const imgTag: HTMLImageElement = document.createElement('img');
     imgTag.setAttribute('width', width ? width : '50');
     imgTag.setAttribute('height', height ? height : '50');
     imgTag.setAttribute('src', src);
@@ -645,6 +703,7 @@ class View {
     if (imgTagId) {
       imgTag.setAttribute('id', imgTagId);
     }
+
     return imgTag;
   }
 
