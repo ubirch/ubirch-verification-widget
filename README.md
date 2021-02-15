@@ -12,14 +12,10 @@ Ubirch UPP Verification Widget
 
 ### Build
 
-Run
+Run on localhost
 
 ```
 npm run serve:local
-```
-
-```
-npm run serve:<dev|demo|prod>
 ```
 
 Build
@@ -29,7 +25,7 @@ npm run build:local
 ```
 
 ```
-npm run build:<dev|demo|prod>
+npm run build:prod
 ```
 
 ## Configuration
@@ -40,21 +36,6 @@ Widget configuration should be done on Ubirch side before deploy.
 - `seal_icon_url` - URL to seal icon
 - `no_seal_icon_url` - URL to no-seal icon
 - `console_verify_url` - URL to console web app verification page
-- `assets_url_prefix` - absolute path to widget's assets
-
-### assets_url_prefix
-
-The widget will be used as external script, so, all the URLs it will add to the document will be handled relatively:
-
-`/assets/some-image.jpg`
-
-will became
-
-`www.my-website.com/assets/some-image.jpg`
-
-instead of using the Ubirch's website.
-
-To avoid it, you need to specify the absolute path to the console resources. Use `assets_url_prefix` field for it.
 
 ## Usage
 

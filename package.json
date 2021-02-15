@@ -30,12 +30,8 @@
     "watch": "webpack --watch",
     "start": "webpack serve --open",
     "serve:local": "webpack serve --env STAGE=local",
-    "serve:dev": "webpack serve --env STAGE=dev",
-    "serve:demo": "webpack serve --env STAGE=demo",
     "serve:prod": "webpack serve --env STAGE=prod",
     "build:local": "webpack --env STAGE=local",
-    "build:dev": "webpack --env STAGE=dev",
-    "build:demo": "webpack --env STAGE=demo",
     "build:prod": "webpack --env STAGE=prod"
   },
   "repository": {

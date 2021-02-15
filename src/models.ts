@@ -20,9 +20,17 @@ export enum ELanguages {
   en = 'en'
 }
 
+export enum EStages {
+  local = 'local',
+  dev = 'dev',
+  demo = 'demo',
+  prod = 'prod',
+}
+
 export interface IUbirchVerificationConfig {
   algorithm: UbirchHashAlgorithm;
   elementSelector: string;
+  stage?: EStages;
   language?: ELanguages;
   HIGHLIGHT_PAGE_AFTER_VERIFICATION?: boolean;
   OPEN_CONSOLE_IN_SAME_TARGET?: boolean;
@@ -63,9 +71,17 @@ export interface IUbirchVerificationAnchorProperties {
 }
 
 export interface IUbirchVerificationEnvConfig {
-  verify_api_url: string;
-  console_verify_url: string;
-  assets_url_prefix: string;
+  verify_api_url: IUbirchStagesURLs;
+  verify_api_path: string;
+  console_verify_url: IUbirchStagesURLs;
+  console_verify_path: string;
+}
+
+export interface IUbirchStagesURLs {
+  local?: string,
+  dev?: string,
+  demo?: string,
+  prod?: string,
 }
 
 export interface IUbirchFormError {

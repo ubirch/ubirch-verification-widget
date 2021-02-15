@@ -1,8 +1,13 @@
 import { sha256 } from 'js-sha256';
 import { sha512 } from 'js-sha512';
+import * as BlockchainSettings from '../blockchain-assets/blockchain-settings.json';
+import environment from '../environments/environment';
 import {
   EError,
-  EInfo, IUbirchBlockchain, IUbirchBlockchainNet,
+  EInfo,
+  EStages,
+  IUbirchBlockchain,
+  IUbirchBlockchainNet,
   IUbirchFormError,
   IUbirchFormVerificationConfig,
   IUbirchVerificationAnchorProperties,
@@ -10,17 +15,18 @@ import {
   IUbirchVerificationResponse,
   UbirchHashAlgorithm,
 } from './models';
-import environment from '../environments/environment';
 // assets
 import './style.scss';
-import '../blockchain-assets/blockchain-icons/bloxberg_verify_right.png';
-import '../blockchain-assets/blockchain-icons/Ethereum-Classic_verify_right.png';
-import '../blockchain-assets/blockchain-icons/Ethereum_verify_right.png';
-import '../blockchain-assets/blockchain-icons/GovDigital_Icon_verify_right.png';
-import '../blockchain-assets/blockchain-icons/IOTA_verify_right.png';
-const ubirch_verify_right = require('../blockchain-assets/blockchain-icons/ubirch_verify_right.png');
-const ubirch_verify_wrong = require('../blockchain-assets/blockchain-icons/ubirch_verify_wrong.png');
-import * as BlockchainSettings from '../blockchain-assets/blockchain-settings.json';
+
+const icons: Map<string, any> = new Map([
+  ['ubirch_verify_right.png', require('../blockchain-assets/blockchain-icons/ubirch_verify_right.png')],
+  ['ubirch_verify_wrong.png', require('../blockchain-assets/blockchain-icons/ubirch_verify_wrong.png')],
+  ['bloxberg_verify_right.png', require('../blockchain-assets/blockchain-icons/bloxberg_verify_right.png')],
+  ['Ethereum_Classic_verify_right.png', require('../blockchain-assets/blockchain-icons/Ethereum_Classic_verify_right.png')],
+  ['Ethereum_verify_right.png', require('../blockchain-assets/blockchain-icons/Ethereum_verify_right.png')],
+  ['GovDigital_Icon_verify_right.png', require('../blockchain-assets/blockchain-icons/GovDigital_Icon_verify_right.png')],
+  ['IOTA_verify_right.png', require('../blockchain-assets/blockchain-icons/IOTA_verify_right.png')],
+]);
 
 const LANGUAGE_MESSAGE_STRINGS = {
   de: {
@@ -105,6 +111,7 @@ let HIGHLIGHT_PAGE_AFTER_VERIFICATION = false;
 
 class UbirchVerification {
   private responseHandler: ResponseHandler = new ResponseHandler();
+  private stage: EStages = EStages.prod;
   private view: View;
   private algorithm: UbirchHashAlgorithm;
   private elementSelector: string;
@@ -123,6 +130,10 @@ class UbirchVerification {
       throw new Error('Please, provide the `elementSelector` to UbirchVerification or UbirchFormVerification instance');
     }
 
+    if (config.stage) {
+      this.stage = config.stage;
+    }
+
     this.algorithm = config.algorithm;
     this.elementSelector = config.elementSelector;
 
@@ -134,7 +145,7 @@ class UbirchVerification {
       this.noLinkToConsole = config.NO_LINK_TO_CONSOLE;
     }
 
-    this.view = new View(this.elementSelector, this.openConsoleInSameTarget);
+    this.view = new View(this.elementSelector, this.openConsoleInSameTarget, this.stage);
   }
 
   public setMessageString(key, info, headline?) {
@@ -240,7 +251,7 @@ class UbirchVerification {
       }
     };
 
-    const verificationUrl = environment.verify_api_url + VERSION + 'upp/verify/record?response_form=anchors_with_path&blockchain_info=ext';
+    const verificationUrl = environment.verify_api_url[this.stage] + VERSION + environment.verify_api_path;
 
     xhttp.open('POST', verificationUrl, true);
     xhttp.setRequestHeader('Content-type', 'text/plain');
@@ -535,6 +546,7 @@ class ResponseHandler {
 
 class View {
   private host: HTMLElement;
+  private readonly stage: string;
   private sealInfoText: HTMLElement = document.createElement('div');
   private sealOutput: HTMLElement = document.createElement('div');
   private resultOutput: HTMLElement = document.createElement('div');
@@ -543,9 +555,11 @@ class View {
 
   constructor(
     private elementSelectorP,
-    private openConsoleInSameTargetP) {
+    private openConsoleInSameTargetP,
+    private stageP) {
     const host: HTMLElement = document.querySelector(this.elementSelectorP);
     this.openConsoleInSameTarget = openConsoleInSameTargetP;
+    this.stage = stageP;
 
     if (!host) {
       throw new Error(`Element by selector '${this.elementSelectorP}' not found`);
@@ -580,10 +594,10 @@ class View {
     let icon: HTMLElement;
 
     if (successful) {
-      icon = this.createIconTag(ubirch_verify_right.default,
+      icon = this.createIconTag(BlockchainSettings.ubirchIcons.seal,
         'ubirch-verification-seal-img');
     } else {
-      icon = this.createIconTag(ubirch_verify_wrong.default,
+      icon = this.createIconTag(BlockchainSettings.ubirchIcons.no_seal,
         'ubirch-verification-no-seal-img');
     }
 
@@ -594,7 +608,7 @@ class View {
 
       const encodedHash: string = encodeURIComponent(hash);
 
-      link.setAttribute('href', `${environment.console_verify_url}?hash=${encodedHash}`);
+      link.setAttribute('href', `${environment.console_verify_url[this.stage]}?hash=${encodedHash}`);
       if (!this.openConsoleInSameTarget) {
         link.setAttribute('target', '_blank');
       }
@@ -651,7 +665,7 @@ class View {
     // if icon url is given add img, otherwise add text
     if (blox.nodeIcon) {
       const iconId = `blockchain_transid_check${index === undefined ? '' : '_' + index}`;
-      linkTag.appendChild(this.createIconTag(environment.assets_url_prefix + blox.nodeIcon, iconId));
+      linkTag.appendChild(this.createIconTag(blox.nodeIcon, iconId));
     } else {
       linkTag.innerHTML = titleStr;
     }
@@ -694,11 +708,18 @@ class View {
     }
   }
 
-  private createIconTag(src: string, imgTagId: string, width?: string, height?: string): HTMLElement {
+  private createIconTag(iconSrcP: string, imgTagId: string, width?: string, height?: string): HTMLImageElement {
     const imgTag: HTMLImageElement = document.createElement('img');
     imgTag.setAttribute('width', width ? width : '50');
     imgTag.setAttribute('height', height ? height : '50');
-    imgTag.setAttribute('src', src);
+    try {
+      const srcStr = icons.get(iconSrcP)?.default;
+      if (srcStr) {
+        imgTag.setAttribute('src', srcStr);
+      }
+    } catch (e) {
+      logError('Cannot find icon for ' + iconSrcP);
+    }
 
     if (imgTagId) {
       imgTag.setAttribute('id', imgTagId);
