@@ -11,11 +11,11 @@ module.exports = function (env) {
   return {
     mode: MODE,
     entry: {
-      verification: './src/index.ts',
+      "ubirch-verification-widget": './src/index.ts',
     },
     output: {
       path: path.resolve(__dirname, 'dist'),
-      filename: '[name].js',
+      filename: '[name].min.js',
     },
     resolve: {
       extensions: ['.js', '.ts'],
@@ -32,10 +32,16 @@ module.exports = function (env) {
     },
     plugins: [
       new CleanWebpackPlugin({cleanStaleWebpackAssets: false}),
-      new HtmlWebpackPlugin({
-        filename: 'index.html',
-        template: './src/verification.html'
-      }),
+      new HtmlWebpackPlugin(
+        {
+          filename: 'index.html',
+          template: './src/verification.html'
+        }),
+      new HtmlWebpackPlugin(
+        {
+          filename: 'simple.html',
+          template: './src/simple_verification.html'
+        }),
       new CopyPlugin({
         patterns: [
           {

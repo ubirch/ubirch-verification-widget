@@ -1,5 +1,5 @@
 {
-  "name": "@ubirch/verification-widget",
+  "name": "@ubirch/ubirch-verification-widget",
   "version": "1.0.0",
   "description": "Ubirch UPP Verification Widget to verify that given data, JSON or hash has been anchored in several blockchains",
   "main": "verification.js",

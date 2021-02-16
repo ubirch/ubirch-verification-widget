@@ -4,9 +4,20 @@ Ubirch UPP Verification Widget
 ## Project structure
 
 - `dist` - folder with Webpack build output
+- `dist/blockchain-assets` - folder with configuration and icons for ubirch blockchain anchors
 - `index.html` - verification usage instructions and examples
 - `webpack.config.js` - Webpack configuration file
 - `index.ts` - widget entry point
+
+## Installing from NPM.
+
+`npm i @ubirch/ubirch-verification-widget`
+
+## Building from sources.
+
+`npm install`
+
+`npm run build:prod` This will bundle a js file for the browser into /dist directory.
 
 ## NPM scripts
 
@@ -28,15 +39,6 @@ npm run build:local
 npm run build:prod
 ```
 
-## Configuration
-
-Widget configuration should be done on Ubirch side before deploy.
-
-- `verify_api_url` - URL to send verification request
-- `seal_icon_url` - URL to seal icon
-- `no_seal_icon_url` - URL to no-seal icon
-- `console_verify_url` - URL to console web app verification page
-
 ## Usage
 
 ### Prerequisites
@@ -45,8 +47,8 @@ You have anchored a JSON in the ubirch environment.
 
 Attention:
 
-1. be sure to use the correct <code>{{Ubirch URL}}</code>
-2. params in the JSON have to be ordered alphabetically, no spaces
+1. params in the JSON have to be ordered alphabetically, no spaces
+1. the widget will verify against the UBIRCH prod system per default (otherwise you need to set the stage in the constructor, see following instructions)
 
 ### widget's host element
 
@@ -64,21 +66,58 @@ of the <code>UbirchVerification</code> constructor.
         ...
     </script>
 
-### Insert verification.js
+#### Example on Browser
 
-Add <code>verification.js</code> script to your page:
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Ubirch Verification Widget</title>
+</head>
+<body>
+      <div class="input-field">
+        <label for="json-input">JSON:</label>
+        <textarea rows="10" cols="80" placeholder="" type="text" id="json-input"></textarea>
+      </div>
+      <button id="verify-json">Verify JSON</button>
 
-    <script src="{{Ubirch URL}}/libs/verification/verification.js"></script>;
+      <div id="verification-widget">
 
-Attention:
-1. Be sure to use the same <code>{{Ubirch URL}}</code> where you documents are anchored
-2. load verification.js before using it!
 
-### Create a <code>UbirchVerification</code> instance
+    <script src="../dist/ubirch-verification-widget.min.js"></script>
+    <!--  Use this if installed from NPM -->
+    <!--  <script src="../node_modules/@ubirch/ubirch-verification-widget/dist/ubirch-verification-widget.min.js"></script> -->
+    <script>
+      let ubirchVerification;
+      document.addEventListener("DOMContentLoaded", function () {
+        // create UbirchVerification instance
+        ubirchVerification = new UbirchVerification({
+          algorithm: 'sha256',
+          elementSelector: '#verification-widget',
+        });
+      });
+
+      // verify JSON button click listener
+      document.getElementById('verify-json').addEventListener('click', function() {
+        try {
+        ubirchVerification.verifyJSON(document.getElementById('json-input').value);
+        } catch (e) {
+          // handle the error yourself and inform user about the missing fields
+          msg = "JSON Verification failed!\n";
+          window.alert(msg);
+        }
+      });
+    </script>
+</body>
+</html>
+```
+
+### <code>UbirchVerification</code> instance
 
     const ubirchVerification = new UbirchVerification({
         algorithm: 'sha512',
         elementSelector: '#verification-widget',
+        state: 'demo',  // OTIONAL!!
         language: 'en',  // OPTIONAL!!
         HIGHLIGHT_PAGE_AFTER_VERIFICATION: true  // OPTIONAL!!
     });
@@ -87,6 +126,9 @@ Attention:
 Where:
 * <code>algorithm</code> is hashing algorithm you need (possible values: <code>sha256</code>, <code>sha512</code> )
 * <code>elementSelector</code> is widget's host element selector (id), e.g. <code>#verification-widget</code>
+* <code>stage</code> optional param to set UBRICH stage against which widget tries to verify;
+  currently available: 'dev'/'demo'/'prod'/'local';
+  default stage is 'prod'
 * <code>language</code> optional param to set language of widget strings; currently available: 'de'/'en';
   default language is 'de'
 * <code>HIGHLIGHT_PAGE_AFTER_VERIFICATION</code> optional param, if set to true the whole page will be highlighted
@@ -189,6 +231,7 @@ Same as for UbirchVerification widget
     const ubirchFormVerification = new UbirchFormVerification({
       algorithm: 'sha512',
       elementSelector: '#verification-widget',
+      state: 'demo',  // OTIONAL!!
       language: 'en',  // OPTIONAL!!
       HIGHLIGHT_PAGE_AFTER_VERIFICATION: true  // OPTIONAL!!
 
@@ -297,3 +340,41 @@ If you have a form with input fields for all params you can create the JSON docu
                 id => // handle missing field
             );
         }
+
+
+## Widget Configuration
+
+### Environment Settings
+
+In the environments the following settings should be set:
+
+- `verify_api_url` - Server URL for the verification request for every stage (local, dev, demo, prod)
+- `console_verify_url` - Server URL to open details in the console web app verification page for every stage (local, dev, demo, prod)
+
+### How To Add New Blockchains
+
+1. Add new Blockchain settings to the `blockchain-assets/blockchain-settings.json`:
+
+
+    "new-blx-name": {
+      "nodeIcon": "new-blx_verify_right.png",
+      "explorerUrl": {
+         "testnet": {
+           "url": "https://blockexplorer.new-blx-name.org/tx/path-to-testnet"
+         },
+         "mainnet": {
+           "url": "https://blockexplorer.new-blx-name.org/tx/path-to-mainnet"
+         }
+       }
+    },
+
+2. Add new Blockchain icon to the folder `blockchain-assets/blockchain-icons`
+3. Add require statement for the new Blockchain icon in the index.ts:
+
+
+    const icons: Map<string, any> = new Map([
+      ['ubirch_verify_right.png', require('../blockchain-assets/blockchain-icons/ubirch_verify_right.png')],
+      ['ubirch_verify_wrong.png', require('../blockchain-assets/blockchain-icons/ubirch_verify_wrong.png')],
+      ...
+      ['blx_verify_right.png', require('../blockchain-assets/blockchain-icons/blx_verify_right.png')],
+    ]);

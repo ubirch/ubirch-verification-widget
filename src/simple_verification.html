@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Ubirch Verification Widget</title>
+</head>
+<body>
+<div class="input-field">
+  <label for="json-input">JSON:</label>
+  <textarea rows="10" cols="80" placeholder="" type="text" id="json-input"></textarea>
+</div>
+<button id="verify-json">Verify JSON</button>
+
+<div id="verification-widget">
+
+
+  <script src="../dist/ubirch-verification-widget.min.js"></script>
+  <!--  Use this if installed from NPM -->
+  <!--  <script src="../node_modules/@ubirch/ubirch-verification-widget/dist/ubirch-verification-widget.min.js"></script> -->
+  <script>
+    let ubirchVerification;
+    document.addEventListener("DOMContentLoaded", function () {
+      // create UbirchVerification instance
+      ubirchVerification = new UbirchVerification({
+        algorithm: 'sha256',
+        elementSelector: '#verification-widget',
+      });
+    });
+
+    // verify JSON button click listener
+    document.getElementById('verify-json').addEventListener('click', function() {
+      try {
+        ubirchVerification.verifyJSON(document.getElementById('json-input').value);
+      } catch (e) {
+        // handle the error yourself and inform user about the missing fields
+        msg = "JSON Verification failed!\n";
+        window.alert(msg);
+      }
+    });
+  </script>
+</body>
+</html>
